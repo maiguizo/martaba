@@ -1,259 +1,163 @@
-/* Program to solve SuDoko puzzles. */
-#include "stdrusty.h"
-#include <assert.h>
-#include <stdio.h>
+package solveur_de_sudoku;
 
-static int initial_puzzle[9][9] = 
-{ { 0, 1, 9, 2, 0, 0, 5, 0, 0, },
-  { 7, 0, 0, 0, 8, 0, 3, 0, 0, },
-  { 0, 4, 0, 5, 0, 0, 0, 0, 0, },
-  { 3, 0, 0, 0, 0, 0, 0, 0, 0, },
-  { 0, 2, 0, 1, 0, 7, 0, 8, 0, },
-  { 0, 0, 0, 0, 0, 0, 0, 0, 1, },
-  { 0, 0, 0, 0, 0, 4, 0, 5, 0, },
-  { 0, 0, 5, 0, 1, 0, 0, 0, 6, },
-  { 0, 0, 2, 0, 0, 6, 7, 9, 0, },
-};
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 
-#define FINISHED (1 << 15)
+/**
+ * 
+ * @author MAIGUIZO Maman Sani, MOUSTAPHA Omar Farah, AMEGBLETO Atsu Elom Yao, YOUMBI EKEN Bernadette Josiane  
+ *
+ */
+public class Solveur_de_sudoku {
 
-static inline unsigned int hweight16(unsigned int w)
-{
-        unsigned int res = (w & 0x5555) + ((w >> 1) & 0x5555);
-        res = (res & 0x3333) + ((res >> 2) & 0x3333);
-        res = (res & 0x0F0F) + ((res >> 4) & 0x0F0F);
-        return (res & 0x00FF) + ((res >> 8) & 0x00FF);
+public static final int N=9;
+    private int[][] grille;
+
+    public Solveur_de_sudoku() {
+       this.grille = new int [N][N];
+    }
+// Methode pour lire la grille a partir d'un fichier
+public void readGrille(String Fichier) {
+    int[][] input=new int [N][N];
+	try {
+        StringBuffer sbuf = new StringBuffer();
+        String str;
+        BufferedReader in = new BufferedReader(new FileReader(Fichier));
+    	
+        str = in.readLine();
+        
+    	int i=0;
+        while (str != null) {
+        	for (int j=0;j<str.trim().split(" ").length;j++){
+        		input[i][j]=Integer.parseInt(str.trim().split(" ")[j]);
+        	}
+       	
+        	str = in.readLine();
+        	i++;
+        }
+        grille=input;
+    } catch (IOException e) {
+        System.err.println(e);
+        System.out.println("Fichier " +Fichier+" inexistant...");
+    }
+ 
 }
 
-static unsigned row(u16 puzzle[9][9], unsigned int x, unsigned int y,
-		    u16 *value, 
-		    bool (*fn)(u16 p[9][9], unsigned int, unsigned int, u16 *))
-{
-	unsigned int i, total = 0;
+	/**
+	* Vérifie si la grille donnée est valide pour le jeu du sudoku, i.e ne content pas de doublons sur les lignes.
+	* @param grille
+	**/
+    public boolean checkligne(int n, int[][] grille, int i) { // verifie si il n'y pas de repétition sur la ligne i pour le chiffre n
+        for (int j = 0; j < 9; j++) {
+            if (grille[i][j] == n) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	for (i = 0; i < 9; i++)
-		if (i != x && !(puzzle[y][i] & FINISHED))
-			total += fn(puzzle, i, y, value);
-	return total;
-}
+	/**
+	* Vérifie si la grille donnée est valide pour le jeu du sudoku, i.e ne content pas de doublons sur les colonnes.
+	* @param grille
+	**/
+    public boolean checkcol(int n, int[][] grille, int j) { // verifie si il n'a pas de doublon sur la colonne j pour le chiffre n  
+        for (int i = 0; i < 9; i++) {
 
-static unsigned column(u16 puzzle[9][9], unsigned int x, unsigned int y,
-		       u16 *value, 
-		       bool (*fn)(u16 p[9][9], unsigned, unsigned, u16 *))
-{
-	unsigned int i, total = 0;
+            if (grille[i][j] == n) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	for (i = 0; i < 9; i++)
-		if (i != y && !(puzzle[i][x] & FINISHED))
-			total += fn(puzzle, x, i, value);
-	return total;
-}
+		/**
+	* verifie s'il n'existe pas de doublon dans la zone délimitée par i et j pour le chiffre n.
+	* @param grille
+	* @param n
+	* @param i
+	* @param j
+	**/
+    public boolean checkzone(int n, int[][] grille, int i, int j) { 
+        int w = i - (i % 3), z = j - (j % 3);
 
-static unsigned box(u16 puzzle[9][9], unsigned int x, unsigned int y,
-		    u16 *value, 
-		    bool (*fn)(u16 p[9][9], unsigned int, unsigned int, u16 *))
-{
-	unsigned int ix, iy, total = 0;
+        for (i = w; i < w + 3; i++) {
+            for (j = z; j < z + 3; j++) {
+                if (grille[i][j] == n) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    
+	
+    //prend en paramètre la grille de sudoku et le résous en faisant appelle au autre methode de récurcivement
 
-	/* Integer division gives us the 3x3 box we're in. */
-	for (ix = x / 3 * 3; ix < x / 3 * 3 + 3; ix++) {
-		for (iy = y / 3 * 3; iy < y / 3 * 3 + 3; iy++) {
-			if (puzzle[iy][ix] & FINISHED)
-				continue;
-			if (ix == x && iy == y)
-				continue;
-			total += fn(puzzle, ix, iy, value);
-		}
-	}
-	return total;
-}
+    public boolean verificateurValide(int[][] grille, int position) {
 
-static void eliminate(u16 puzzle[9][9], unsigned int x, unsigned int y);
+        if (position == 9 * 9) {        // si on est à la position 81 il renvoie vraie (on fini de remplir le sudoku)
+            return true;
+        }
 
-static bool reduce(u16 puzzle[9][9], unsigned int x, unsigned int y, u16 *val)
-{
-	puzzle[y][x] &= ~*val;
-	assert(puzzle[y][x] != 0);
+        int i = position / 9, j = position % 9;    // i la ligne = partie entière de la division & j la colonne = le reste de la division ( position [0 .....81]
 
-	if (hweight16(puzzle[y][x]) == 1) {
-		printf("Solved %ix%i = %i\n", x+1, y+1, ffs(puzzle[y][x]));
-		eliminate(puzzle, x, y);
-		return true;
-	}
-	return false;
-}
+        if (grille[i][j] != 0) {             // si il existe déjà un nombre à cette position on passe à la position suivante
+            return verificateurValide(grille, position + 1);
+        }
 
-static void eliminate(u16 puzzle[9][9], unsigned int x, unsigned int y)
-{
-	assert(puzzle[y][x] != 0);
-	puzzle[y][x] |= FINISHED;
+        for (int k = 1; k <= 9; k++) {
 
-	row(puzzle, x, y, &puzzle[y][x], reduce);
-	column(puzzle, x, y, &puzzle[y][x], reduce);
-	box(puzzle, x, y, &puzzle[y][x], reduce);
-}
+	// le nombre choisi (k) n'exite pas sur la colonne ni sur la ligne ni dans la zone ont peut l'inserer à la position i j
+            if (checkligne(k, grille, i) && checkcol(k, grille, j) && checkzone(k, grille, i, j)) {
 
-/* Take away the possibilities of this square. */
-static bool cutdown(u16 puzzle[9][9], unsigned int x, unsigned int y, u16 *val)
-{
-	if (*val & puzzle[y][x]) {
-		*val &= ~puzzle[y][x];
-		return true;
-	}
-	return false;
-}
+                grille[i][j] = k;
 
-void dump_val(u16 val)
-{
-	unsigned int i;
+                if (verificateurValide(grille, position + 1)) {
+                    return true;
+                }
+            }
 
-	for (i = 0; i < 9; i++)
-		if (val & (1 << i))
-			printf("%i", i+1);
-		else
-			printf(" ");
-}
+        }
+	// Tous les chiffres ont été testés, aucun n'est bon, on réinitialise la case et on retourne false
+        grille[i][j] = 0;
+        return false;
+    }
 
-static void dump(u16 puzzle[9][9])
-{
-	unsigned int x, y;
+    
+    public void affiche( int [][] grille) {
+        int k = 0;
 
-	for (y = 0; y < 9; y++) {
-		if (y % 3 == 0)
-			printf(" -----------------------------------------------------------------------------------------\n");
-		for (x = 0; x < 9; x++) {
-			if (x % 3 == 0)
-				printf("|");
-			else
-				printf(".");
-			dump_val(puzzle[y][x]);
-		}
-		printf("|\n");
-	}
-	printf(" -----------------------------------------------------------------------------------------\n");
-}
+        for (int i = 0; i < 9; i++) {
+            int n = 0;
+            if (k % 3 == 0) {
+                System.err.print("\n");
+            }
+            k++;
+            for (int j = 0; j < 9; j++) {
+                n++;
+                System.err.print(" " + grille[i][j]);
+                if (n % 3 == 0) {
+                    System.err.print(" ");
+                }
+                if (n == 9) {
+                    System.err.println("");
+                }
+            }
+        }
+        System.err.print("--------------------");
+    }
 
-/* If we have a possibility which no other square has, that's our value */
-static bool try_cutdown(u16 puzzle[9][9], unsigned int x, unsigned int y)
-{
-	u16 val;
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+        
+        Solveur_de_sudoku solveur_de_sudoku = new Solveur_de_sudoku();
+        solveur_de_sudoku.readGrille("~Users/Public/workspace/solveur_de_sudoku/bin/solveur_de_sudoku/Fichier.txt");
+        solveur_de_sudoku.affiche(solveur_de_sudoku.grille);
+        solveur_de_sudoku.verificateurValide(solveur_de_sudoku.grille, 0);
+        solveur_de_sudoku.affiche(solveur_de_sudoku.grille);
+    }
 
-	val = puzzle[y][x];
-	row(puzzle, x, y, &val, cutdown);
-	if (val) {
-		printf("Row eliminated %ix%i = %i\n",
-		       x+1, y+1, ffs(val));
-		goto elim;
-	}
-
-	val = puzzle[y][x];
-	column(puzzle, x, y, &val, cutdown);
-	if (val) {
-		printf("Col eliminated %ix%i = %i\n",
-		       x+1, y+1, ffs(val));
-		goto elim;
-	}
-
-	val = puzzle[y][x];
-	box(puzzle, x, y, &val, cutdown);
-	if (val) {
-		printf("Box eliminated %ix%i = %i\n",
-		       x+1, y+1, ffs(val));
-		goto elim;
-	}
-	return false;
-
-elim:
-	/* Can't have more than one answer. */
-	assert(hweight16(val) == 1);
-	puzzle[y][x] = val;
-	eliminate(puzzle, x, y);
-	return true;
-}
-
-static bool match(u16 puzzle[9][9], unsigned int x, unsigned int y, u16 *val)
-{
-	return (puzzle[y][x] == *val);
-}
-
-/* If not equal, remove these bits. */
-static bool reduce_unequal(u16 puzzle[9][9], unsigned x, unsigned y, u16 *val)
-{
-	if (puzzle[y][x] == *val)
-		return false;
-
-	if (!(puzzle[y][x] & *val))
-		return false;
-
-	puzzle[y][x] &= ~*val;
-	assert(puzzle[y][x] != 0);
-
-	if (hweight16(puzzle[y][x]) == 1) {
-		printf("Matches eliminated %ix%i = %i\n",
-		       x+1, y+1, ffs(puzzle[y][x]));
-		eliminate(puzzle, x, y);
-	}
-	return true;
-}
-
-/* If there are 2 identical pairs, nothing else can be that value.
- * Similarly 3 identical triplets. */
-static bool try_matches(u16 puzzle[9][9], unsigned int x, unsigned int y)
-{
-	unsigned int matches;
-	bool progress = false;
-
-	matches = row(puzzle, x, y, &puzzle[y][x], match);
-	if (matches+1 == hweight16(puzzle[y][x]))
-		progress = row(puzzle, x, y, &puzzle[y][x], reduce_unequal);
-
-	matches = column(puzzle, x, y, &puzzle[y][x], match);
-	if (matches+1 == hweight16(puzzle[y][x]))
-		progress = column(puzzle, x, y, &puzzle[y][x], reduce_unequal);
-
-	matches = box(puzzle, x, y, &puzzle[y][x], match);
-	if (matches+1 == hweight16(puzzle[y][x]))
-		progress = box(puzzle, x, y, &puzzle[y][x], reduce_unequal);
-
-	return progress;
-}
-
-int main()
-{
-	unsigned int x, y;
-	bool progress;
-	u16 puzzle[9][9];
-
-	/* Blank puzzle. */
-	for (x = 0; x < 9; x++)
-		for (y = 0; y < 9; y++)
-			puzzle[y][x] = (1 << 9) - 1;
-
-	printf("Adding known numbers...\n");
-	for (x = 0; x < 9; x++) {
-		for (y = 0; y < 9; y++) {
-			if (!initial_puzzle[y][x])
-				continue;
-			puzzle[y][x] = 1 << (initial_puzzle[y][x] - 1);
-			printf("We know %ix%i = %i\n",
-			       x+1, y+1, ffs(puzzle[y][x]));
-			eliminate(puzzle, x, y);
-		}
-	}
-
-	printf("Deriving new numbers...\n");
-	do {
-		progress = false;
-		for (x = 0; x < 9; x++) {
-			for (y = 0; y < 9; y++) {
-				if (puzzle[y][x] & FINISHED)
-					continue;
-				progress |= try_cutdown(puzzle, x, y);
-				progress |= try_matches(puzzle, x, y);
-			}
-		}
-	} while(progress);
-	dump(puzzle);
-
-	return 0;
 }
